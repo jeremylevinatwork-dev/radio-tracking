@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="radio-20261022-1616">
+<html lang="en" data-build="radio-20261022-1654">
 <head>
 <meta charset="UTF-8">
 <meta name="mobile-web-app-capable" content="yes">
@@ -350,14 +350,10 @@ async function sbPush(){
       if(chk.ok){
         var crows = await chk.json();
         var cloudRadios = crows && crows[0] && crows[0].data && crows[0].data.radios;
-        if(Array.isArray(cloudRadios) && cloudRadios.length > S.radios.length + 5){
-          var have = {};
-          S.radios.forEach(function(r){ have[r.uid] = 1; });
-          var missing = cloudRadios.filter(function(r){ return !have[r.uid]; });
-          if(missing.length){
-            S.radios = S.radios.concat(missing);
-            try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){}
-          }
+        if(Array.isArray(cloudRadios)){
+          var beforeJson = JSON.stringify(S.radios || []);
+          S.radios = mergeRadios(S.radios || [], cloudRadios, true).list;
+          if(JSON.stringify(S.radios) !== beforeJson){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){} }
         }
       }
     }catch(e){}
@@ -378,6 +374,24 @@ async function sbPush(){
   }catch(e){ sbBadge(false, false); }
 }
 function recCount(d){ d = d || {}; return (d.radios ? d.radios.length : 0) + (d.subs ? d.subs.length : 0) + (d.docs ? d.docs.length : 0) + (d.emciForms ? d.emciForms.length : 0); }
+function recFresh(r){
+  var h = (r && r.hist) || [], last = '';
+  for(var i = 0; i < h.length; i++){ var t = (h[i] && h[i].t) || ''; if(t > last) last = t; }
+  return last + '|' + (1000000 + h.length);
+}
+function mergeRadios(localArr, cloudArr, preferLocalOnTie){
+  var byUid = {}, order = [];
+  (cloudArr || []).forEach(function(r){ if(r && r.uid && !byUid[r.uid]){ byUid[r.uid] = r; order.push(r.uid); } });
+  var localWon = 0;
+  (localArr || []).forEach(function(r){
+    if(!r || !r.uid) return;
+    var c = byUid[r.uid];
+    if(!c){ byUid[r.uid] = r; order.push(r.uid); localWon++; return; }
+    var fl = recFresh(r), fc = recFresh(c);
+    if(fl > fc || (fl === fc && preferLocalOnTie)){ byUid[r.uid] = r; localWon++; }
+  });
+  return { list: order.map(function(u){ return byUid[u]; }), localWon: localWon };
+}
 async function sbPull(){
   try{
     var res = await fetch(SB_URL + '/rest/v1/app_records?id=eq.' + encodeURIComponent(SB_ROW_ID) + '&select=data,updated_at', {
@@ -391,10 +405,13 @@ async function sbPull(){
     var localTs = (typeof S !== 'undefined' && S && S._ts) || 0;
     /* SAFETY: never let the cloud wipe local work. If this device holds more
        records than the cloud, push local up instead of pulling down. */
-    if(recCount(S) > recCount(cloudData)){ sbPush(); return; }
-    if(cloudTs > localTs || recCount(cloudData) > recCount(S)){
+    var mgPull = Array.isArray(cloudData.radios) ? mergeRadios((typeof S !== 'undefined' && S && S.radios) || [], cloudData.radios, false) : { list: ((typeof S !== 'undefined' && S) ? S.radios : []) || [], localWon: 0 };
+    if(recCount(S) > recCount(cloudData) && !mgPull.localWon){ sbPush(); return; }
+    if(cloudTs > localTs || recCount(cloudData) > recCount(S) || mgPull.localWon){
       var keepSession = (typeof S !== 'undefined' && S) ? S.session : null;
       S = rows[0].data;
+      if(Array.isArray(cloudData.radios)) S.radios = mgPull.list;
+      S._ts = Math.max(cloudTs, localTs);
       if(keepSession !== undefined) S.session = keepSession;
       S.emciForms = S.emciForms || [];
       try{
@@ -403,6 +420,7 @@ async function sbPull(){
       }catch(e){}
       if(typeof render === 'function'){ try{ render(); }catch(e){} }
       sbBadge(true, false);
+      if(mgPull.localWon) sbSchedulePush();
     }
   }catch(e){}
 }
