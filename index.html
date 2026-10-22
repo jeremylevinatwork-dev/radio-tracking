@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="radio-20261022-1341">
+<html lang="en" data-build="radio-20261022-1616">
 <head>
 <meta charset="UTF-8">
 <meta name="mobile-web-app-capable" content="yes">
@@ -503,6 +503,7 @@ function statusBadge(st){
 function hasStatus(f,st){ return String(f.status||"").split(",").map(s=>s.trim()).indexOf(st)>=0; }
 var REPAIR_ST = ["In Repair","Sent to EMCI","Waiting on EMCI","On hold for EMCI","Radio is with EMCI","EMCI took radio for programming","Picked Up"];
 function inRepair(f){ return REPAIR_ST.some(function(s){ return hasStatus(f, s); }); }
+function needsAttn(f){ return !inRepair(f) && ["Broken","Warranty","Lost"].some(function(s){ return hasStatus(f, s); }); }
 function repairSince(f){
   if(!REPAIR_ST.some(function(s){ return hasStatus(f, s); })) return "";
   var h = f.hist || [], start = "";
@@ -603,7 +604,7 @@ function renderDash(){
   const docs = S.docs.filter(d=>inFilter(d.prop));
   const n = st=>radios.filter(f=>hasStatus(f,st)).length;
   const transit = subs.filter(s=>s.status==="Submitted"||s.status==="In Transit").length;
-  const attn = radios.filter(f=>["In Repair","Broken","Warranty","Lost","Picked Up","Sent to EMCI"].some(s=>hasStatus(f, s))).length;
+  const attn = radios.filter(f=>needsAttn(f)).length;
   let h = mailApprovalCard() + '<div class="toolbar"><button class="btn btn-ghost btn-sm" onclick="printSummary()">Print Summary</button><button class="btn btn-gold btn-sm" onclick="emciBlank()">\uD83D\uDCC4 EMCI form (blank)</button> <button class="btn btn-gold btn-sm" onclick="emciFormsList()">\uD83D\uDCC1 Saved EMCI forms</button></div><div class="card"><h3>Find a radio</h3><div style="display:flex;gap:8px"><input id="dashq" placeholder="Radio #, serial, staff, model\u2026" style="flex:1" onkeydown="if(event.key===\'Enter\')dashSearch()"><button class="btn btn-primary" onclick="dashSearch()">Search</button></div><div class="note" style="margin-top:6px">Tip: paste several radio #s or serials, separated by commas, to find them all at once.</div></div><h2 class="sec" style="margin-top:2px">Today at a glance</h2><div class="row">'
     +'<div class="tile" onclick="tileRadios(\'all\')"><div class="n">'+radios.length+'</div><div class="l">Radios</div></div>'
     +'<div class="tile" onclick="tileRadios(\'assigned\')"><div class="n">'+n("Assigned")+'</div><div class="l">Assigned</div></div>'
@@ -649,7 +650,7 @@ window.tileRadios = function(kind){
   if(kind === "assigned") list = list.filter(f=>hasStatus(f, "Assigned"));
   else if(kind === "emcihold") list = list.filter(f=>hasStatus(f, "On hold for EMCI"));
   else if(kind === "repair") list = list.filter(inRepair);
-  else if(kind === "attn") list = list.filter(f=>["In Repair","Broken","Warranty","Lost","Picked Up","Sent to EMCI"].some(s=>hasStatus(f, s)));
+  else if(kind === "attn") list = list.filter(f=>needsAttn(f));
   let h = "<h2>" + titles[kind] + "</h2><div class=\"sub\">" + list.length + " radio" + (list.length === 1 ? "" : "s") + (filter !== "ALL" ? " at " + esc(propName(filter)) : "") + " \u2014 tap one to open it.</div>";
   if(!list.length) h += '<div class="empty">Nothing here right now.</div>';
   list.forEach(f=>{
@@ -1930,7 +1931,7 @@ window.emailRadio=u=>{ const f=S.radios.find(x=>x.uid===u); if(!f) return;
   if(f.replId) lines.push("Replaced by: "+f.replId+" @ "+propLabel(f.replProp)+" ("+(f.replDate||"—")+")");
   composeMail("Radio Tracking Radio "+f.radioId, lines.join("\n"), f.prop); };
 window.emailSummary=()=>{
-  const attn=S.radios.filter(f=>hasStatus(f,"In Repair")||hasStatus(f,"Broken")||hasStatus(f,"Lost"));
+  const attn=S.radios.filter(needsAttn);
   const transit=S.subs.filter(s=>s.status==="Submitted"||s.status==="In Transit");
   const lines=["Radio Tracking — Status Summary ("+todayISO()+")","",
     "Radios: "+S.radios.length+" total, "+S.radios.filter(f=>f.status==="Assigned").length+" assigned",
