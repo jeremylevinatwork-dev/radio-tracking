@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="radio-20261021-2025">
+<html lang="en" data-build="radio-20261022-1233">
 <head>
 <meta charset="UTF-8">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1889,13 +1889,13 @@ window.emailFindResults = ()=>{
 const EJ_KEY="YCkjMTWq2fP_OHNis", EJ_SERVICE="service_ylmlcxh", EJ_TEMPLATE="template_kocoa4d";
 const EJ_TEMPLATE_EMCI = "template_8171jco";
 window.sendDirect=()=>{
-  if(mailNeedsApproval()){ queueHeldMail({kind:'mail', subj:lastMail.subj||'', to:lastMail.to||'Support', payloads:[{template_id:EJ_TEMPLATE, template_params:{subject:lastMail.subj, body:lastMail.body}}]}); try{ closeSheet(); }catch(e){} return; }
+  if(mailNeedsApproval()){ queueHeldMail({kind:'mail', subj:lastMail.subj||'', to:lastMail.to||'Support', payloads:[{template_id:EJ_TEMPLATE, template_params:{subject:lastMail.subj, body:lastMail.body, to_email:lastMail.to||MAIL_TO}}]}); try{ closeSheet(); }catch(e){} return; }
   const btn=document.getElementById("mailsend");
   if(btn){ btn.disabled=true; btn.textContent="Sending…"; }
   fetch("https://api.emailjs.com/api/v1.0/email/send",{method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({service_id:EJ_SERVICE,template_id:EJ_TEMPLATE,user_id:EJ_KEY,
-      template_params:{subject:lastMail.subj,body:lastMail.body}})})
+      template_params:{subject:lastMail.subj,body:lastMail.body,to_email:(lastMail.to||MAIL_TO)}})})
   .then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.text(); })
   .then(()=>{ closeSheet(); toast("Sent to Support"); })
   .catch(()=>{ if(btn){ btn.disabled=false; btn.textContent="Send to Support"; }
