@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="radio-20261022-1654">
+<html lang="en" data-build="radio-20261024-1152">
 <head>
 <meta charset="UTF-8">
 <meta name="mobile-web-app-capable" content="yes">
@@ -392,7 +392,19 @@ function mergeRadios(localArr, cloudArr, preferLocalOnTie){
   });
   return { list: order.map(function(u){ return byUid[u]; }), localWon: localWon };
 }
+var sbPullTick = 0; // egress gate counter (stamp-check polls)
 async function sbPull(){
+  sbPullTick++;
+  if((typeof S !== 'undefined' && S && (S._ts || 0) > 0) && sbPullTick % 20 !== 0){
+    try{
+      var sres = await fetch(SB_URL + '/rest/v1/app_records?id=eq.' + encodeURIComponent(SB_ROW_ID) + '&select=data->_ts', {headers:{'apikey':SB_KEY,'Authorization':'Bearer ' + SB_KEY}});
+      if(sres.ok){
+        var srows = await sres.json();
+        var cts = (srows && srows[0]) ? srows[0]._ts : null;
+        if(typeof cts === 'number' && cts === (S._ts || 0)){ sbBadge(true, false); return; }
+      }
+    }catch(e){}
+  }
   try{
     var res = await fetch(SB_URL + '/rest/v1/app_records?id=eq.' + encodeURIComponent(SB_ROW_ID) + '&select=data,updated_at', {
       headers: {'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY}
