@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="radio-20261027-0836">
+<html lang="en" data-build="radio-20261027-0855">
 <head>
 <meta charset="UTF-8">
 <meta name="mobile-web-app-capable" content="yes">
@@ -726,15 +726,38 @@ window.tileDocs = function(kind){
 };
 
 /* ---------- radios ---------- */
+function searchTerms(q){
+  const s = String(q || "").trim();
+  if(!s) return [];
+  if(/[,;\n]/.test(s)) return s.split(/[,;\n]+/).map(t=>t.trim().toLowerCase()).filter(Boolean);
+  const toks = s.split(/\s+/).filter(Boolean);
+  if(toks.length > 1 && toks.every(t=>t.length >= 3 && /\d/.test(t))) return toks.map(t=>t.toLowerCase());
+  return [s.toLowerCase()];
+}
+function radioHay(f){
+  return ("TKT-"+String(f.radioId).replace(/\s+/g,"")+" "+f.radioId+" "+(f.staff||"")+" "+(f.serial||"")+" "+(f.dept||"")+" "+(f.tracking||"")+" "+(f.model||"")+" "+(f.status||"")).toLowerCase();
+}
+function hayHit(hay, q){
+  const terms = searchTerms(q);
+  if(!terms.length) return true;
+  return terms.some(t=>hay.includes(t));
+}
+function missingTerms(q){
+  const terms = searchTerms(q);
+  if(terms.length < 2) return [];
+  return terms.filter(t=>!S.radios.some(f=>radioHay(f).includes(t)));
+}
 function renderRadios(){
   const list = S.radios.filter(f=>f.status!=="Retired" && inFilter(f.prop) && (!progOnly || hasStatus(f, "Can't Update Out of Service Programming")) &&
-    (!radioSearch || ("TKT-"+String(f.radioId).replace(/\s+/g,"")+" "+f.radioId+" "+(f.staff||"")+" "+(f.serial||"")+" "+(f.dept||"")+" "+(f.tracking||"")+" "+(f.model||"")+" "+(f.status||"")).toLowerCase().includes(radioSearch.toLowerCase())));
-  let h = '<div class="toolbar"><input id="radioq" placeholder="Search tracking #, radio ID, staff…" value="'+esc(radioSearch)+'">'
+    (!radioSearch || hayHit(radioHay(f), radioSearch)));
+  let h = '<div class="toolbar"><input id="radioq" placeholder="Search radio #, serial, staff… (paste several at once)" value="'+esc(radioSearch)+'">'
     +'<button class="btn btn-primary btn-sm" onclick="addRadioForm()">+ Add</button><button class="btn btn-gold btn-sm" onclick="battBatchForm()">🔋 Battery test</button><button class="btn btn-ghost btn-sm" onclick="printInventory()">Print'+(selRadios.size?' ('+selRadios.size+')':'')+'</button><button class="btn btn-ghost btn-sm" onclick="printSignback()">Sign-back Log'+(selRadios.size?' ('+selRadios.size+')':'')+'</button>'
     +(selRadios.size?'<button class="btn btn-ghost btn-sm" onclick="clearSel()">Clear</button>':'')+'</div>'
     +'<div style="display:flex;gap:8px;margin:0 0 10px;width:100%;"><button class="btn btn-ghost" style="flex:1" onclick="toggleProgOnly()">\uD83D\uDCFB '+(progOnly ? 'Back to all radios' : '7550 Can\'t-Update list')+' ('+S.radios.filter(f=>hasStatus(f, "Can't Update Out of Service Programming")).length+')</button></div>'
     +(progOnly ? '<div style="margin:2px 0 10px"><button class="chip active" onclick="toggleProgOnly()">Showing: Can\'t Update Out of Service Programming \u2715</button></div>' : '');
-  if(!list.length) h += progOnly ? '<div class="card"><div class="empty">No radios flagged Can\'t Update Out of Service Programming yet.</div></div>' : '<div class="card"><div class="empty">No radios here yet.<br><br><button class="btn btn-primary btn-sm" onclick="addRadioForm()">+ Add your first radio</button></div></div>';
+  const _miss = missingTerms(radioSearch);
+  if(_miss.length) h += '<div style="background:#FFF5F5;border:1.5px solid #B3261E;color:#9b2c2c;border-radius:9px;padding:9px 11px;font-weight:700;margin-bottom:10px">Not found: ' + _miss.map(esc).join(", ") + '</div>';
+  if(!list.length) h += progOnly ? '<div class="card"><div class="empty">No radios flagged Can\'t Update Out of Service Programming yet.</div></div>' : (radioSearch ? '<div class="card"><div class="empty">No radios match that search.</div></div>' : '<div class="card"><div class="empty">No radios here yet.<br><br><button class="btn btn-primary btn-sm" onclick="addRadioForm()">+ Add your first radio</button></div></div>');
   else h += '<div class="cards2">';
   list.forEach(f=>{
     h += '<div class="card radio" onclick="radioDetail(\''+f.uid+'\')">'
@@ -756,7 +779,7 @@ window.toggleProgOnly = ()=>{ progOnly = !progOnly; renderRadios(); };
 /* ---------- retired / no longer in use ---------- */
 function renderRetired(){
   const list = S.radios.filter(f=>hasStatus(f,"Retired") && inFilter(f.prop) &&
-    (!radioSearch || (f.radioId+" "+(f.serial||"")+" "+(f.model||"")+" "+(f.retReason||"")).toLowerCase().includes(radioSearch.toLowerCase())));
+    (!radioSearch || hayHit((f.radioId+" "+(f.serial||"")+" "+(f.model||"")+" "+(f.retReason||"")).toLowerCase(), radioSearch)));
   let h = '<h2 class="sec" style="margin-top:2px">No Longer In Use</h2><div class="sub">Retired radios \u2014 permanently out of service.</div>'
     +'<div class="toolbar"><input id="retiredq" placeholder="Search radio ID, serial, model, reason\u2026" value="'+esc(radioSearch)+'"><button class="btn btn-ghost btn-sm" onclick="printRetired()">Print</button></div>';
   if(!list.length) h += '<div class="card"><div class="empty">No retired radios.</div></div>';
