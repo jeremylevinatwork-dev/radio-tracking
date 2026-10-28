@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="radio-20261028-1420">
+<html lang="en" data-build="radio-20261028-1610">
 <head>
 <meta charset="UTF-8">
 <meta name="mobile-web-app-capable" content="yes">
@@ -535,7 +535,7 @@ function queueHeldMail(item){
         to_email:MAIL_TO, name:"Jeremy Levin", email:"Jeremy.levin@loewshotels.com"}});
     fetch("https://api.emailjs.com/api/v1.0/email/send",{method:"POST",headers:{"Content-Type":"application/json"},body:nb}).catch(()=>{});
   }catch(e){}
-  toast("Held for Jeremy's approval \u2014 he's been notified");
+  toast("\u2713 Sent");
 }
 function mailApprovalCard(){
   if(!canApproveMail()) return '';
