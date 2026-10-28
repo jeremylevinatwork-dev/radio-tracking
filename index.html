@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="radio-20261027-1650">
+<html lang="en" data-build="radio-20261028-1420">
 <head>
 <meta charset="UTF-8">
 <meta name="mobile-web-app-capable" content="yes">
@@ -457,6 +457,70 @@ function load(){
   }catch(e){ memOnly = true; }
 }
 function sessionName(){ return (S.session&&S.session.name)||""; }
+/* === USAGE LOG (writes to the shared usage-log row; Jeremy views it in Secure Alert) === */
+var usageEntry = null;
+function usageDevice(){
+  const ua = navigator.userAgent || '';
+  let t = 'Computer', d = 'Computer';
+  if(/iPhone/.test(ua)){ t = 'Phone'; d = 'iPhone'; }
+  else if(/iPad/.test(ua)){ t = 'Tablet'; d = 'iPad'; }
+  else if(/Android/.test(ua)){ if(/Mobile/.test(ua)){ t = 'Phone'; d = 'Android phone'; } else { t = 'Tablet'; d = 'Android tablet'; } }
+  else if(/Windows/.test(ua)){ d = 'Windows PC'; }
+  else if(/Macintosh|Mac OS/.test(ua)){ d = 'Mac'; }
+  let b = '';
+  if(/Edg\//.test(ua)) b = 'Edge'; else if(/CriOS|Chrome/.test(ua)) b = 'Chrome'; else if(/FxiOS|Firefox/.test(ua)) b = 'Firefox'; else if(/Safari/.test(ua)) b = 'Safari';
+  return { t: t, d: d + (b ? ' \u00B7 ' + b : '') };
+}
+async function usageWrite(){
+  if(!usageEntry) return;
+  try{
+    const r = await fetch(SB_URL + '/rest/v1/app_records?id=eq.usage-log&select=data', { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY } });
+    const rows = await r.json();
+    let es = (rows && rows[0] && rows[0].data && Array.isArray(rows[0].data.entries)) ? rows[0].data.entries : [];
+    const copy = JSON.parse(JSON.stringify(usageEntry));
+    const i = es.findIndex(e=>e.id === usageEntry.id);
+    if(i >= 0) es[i] = copy; else es.push(copy);
+    const cut = Date.now() - 120 * 864e5;
+    es = es.filter(e=>new Date(e.last).getTime() > cut).slice(-400);
+    await fetch(SB_URL + '/rest/v1/app_records', { method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify({ id: 'usage-log', app: 'radio', data: { entries: es, _ts: Date.now() } }) });
+  }catch(e){}
+}
+function usageStart(){
+  const nm = sessionName();
+  if(!nm) return;
+  try{
+    const savedId = sessionStorage.getItem('rusgId'), savedStart = sessionStorage.getItem('rusgStart'), savedMins = parseInt(sessionStorage.getItem('rusgMins') || '0', 10) || 0;
+    if(savedId && savedStart){
+      const dv = usageDevice();
+      usageEntry = { id: savedId, name: nm, app: 'Radios', start: savedStart, last: new Date().toISOString(), mins: savedMins, type: dv.t, device: dv.d, via: (S.session && S.session.viaPortal) ? 'Portal' : 'PIN' };
+      usageWrite();
+      return;
+    }
+  }catch(e){}
+  const dv = usageDevice();
+  usageEntry = { id: 'u-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7), name: nm, app: 'Radios', start: new Date().toISOString(), last: new Date().toISOString(), mins: 0, type: dv.t, device: dv.d, via: (S.session && S.session.viaPortal) ? 'Portal' : 'PIN' };
+  try{ sessionStorage.setItem('rusgId', usageEntry.id); sessionStorage.setItem('rusgStart', usageEntry.start); sessionStorage.setItem('rusgMins', '0'); }catch(e){}
+  usageWrite();
+}
+window.usageTick = ()=>{
+  if(!usageEntry || !sessionName()) return;
+  usageEntry.last = new Date().toISOString();
+  if(!document.hidden){ usageEntry.mins += 1; try{ sessionStorage.setItem('rusgMins', String(usageEntry.mins)); }catch(e){} }
+  usageWrite();
+};
+setInterval(()=>{ try{ window.usageTick(); }catch(e){} }, 60000);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && usageEntry){ usageEntry.last = new Date().toISOString(); usageWrite(); } });
+function usageEnd(){
+  if(!usageEntry) return;
+  usageEntry.last = new Date().toISOString();
+  usageWrite();
+  usageEntry = null;
+  try{ sessionStorage.removeItem('rusgId'); sessionStorage.removeItem('rusgStart'); sessionStorage.removeItem('rusgMins'); }catch(e){}
+}
+/* === END USAGE LOG === */
+
 function mailNeedsApproval(){ return !!(S.session && /duff/i.test(S.session.name)); }
 function canApproveMail(){ return !!(S.session && S.session.name === 'Jeremy Levin'); }
 function queueHeldMail(item){
@@ -2016,13 +2080,14 @@ window.doLogin=()=>{
   if(!S.team.some(t=>t.name===name&&t.pin===pin)){
     document.getElementById("login-err").textContent="Wrong PIN — try again."; return; }
   S.session={name:name};
+  try{ usageStart(); }catch(e){}
   S.logins=S.logins||[]; S.logins.push({name:name,t:nowLocal()});
   if(S.logins.length>200) S.logins=S.logins.slice(-200);
   save();
   document.getElementById("login").style.display="none";
   render(); toast("Welcome, "+name);
 };
-window.logout=()=>{ S.session=null; try{ localStorage.removeItem('loewsAuth'); localStorage.removeItem('loewsUser'); }catch(e){} save(); gateLogin(); };
+window.logout=()=>{ try{ usageEnd(); }catch(e){} S.session=null; try{ localStorage.removeItem('loewsAuth'); localStorage.removeItem('loewsUser'); }catch(e){} save(); gateLogin(); };
 window.addTeam=()=>{
   if(!(S.session && (S.session.name==="Jeremy Levin" || S.session.name==="Justin Messger"))){ toast("Only Jeremy or Justin can add team members"); return; }
   const name=document.getElementById("tm-name").value.trim();
@@ -2250,6 +2315,7 @@ function render(){
 load();
 if(!S.team||!S.team.length) S.team=[{name:"Jeremy Levin",pin:"1245"},{name:"Alexander Duff",pin:"0132"},{name:"Dominique Black",pin:"2195"},{name:"Sean Forester",pin:"3867"},{name:"Justin Messger",pin:"5132"}];
 renderPropbar(); render(); gateLogin();
+try{ if(S.session && S.session.name) usageStart(); }catch(e){}
 
 </script>
 <div id="print-area"></div>
