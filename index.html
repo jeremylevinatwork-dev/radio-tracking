@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="radio-20261102-1246">
+<html lang="en" data-build="radio-20261109-1244">
 <head>
 <meta charset="UTF-8">
 <meta name="mobile-web-app-capable" content="yes">
@@ -714,7 +714,7 @@ function renderDash(){
   const n = st=>radios.filter(f=>hasStatus(f,st)).length;
   const transit = subs.filter(s=>s.status==="Submitted"||s.status==="In Transit").length;
   const attn = radios.filter(f=>needsAttn(f)).length;
-  let h = mailApprovalCard() + '<div class="toolbar"><button class="btn btn-ghost btn-sm" onclick="printSummary()">Print Summary</button><button class="btn btn-gold btn-sm" onclick="emciBlank()">\uD83D\uDCC4 EMCI form (blank)</button> <button class="btn btn-gold btn-sm" onclick="emciFormsList()">\uD83D\uDCC1 Saved EMCI forms</button></div><div class="card"><h3>Find a radio</h3><div style="display:flex;gap:8px"><input id="dashq" placeholder="Radio #, serial, staff, model\u2026" style="flex:1" onkeydown="if(event.key===\'Enter\')dashSearch()"><button class="btn btn-primary" onclick="dashSearch()">Search</button></div><div class="note" style="margin-top:6px">Tip: paste several radio #s or serials, separated by commas, to find them all at once.</div></div><h2 class="sec" style="margin-top:2px">Today at a glance</h2><div class="row">'
+  let h = mailApprovalCard() + '<div class="toolbar"><button class="btn btn-ghost btn-sm" onclick="printSummary()">Print Summary</button><button class="btn btn-gold btn-sm" onclick="emciBlank()">\uD83D\uDCC4 EMCI form (blank)</button> <button class="btn btn-gold btn-sm" onclick="emciFormsList()">\uD83D\uDCC1 Saved EMCI forms</button> <a class="btn btn-gold btn-sm" href="https://www.emciwireless.com/our-services/equipment-repair-form/" target="_blank" rel="noopener">\uD83C\uDF10 EMCI online form</a></div><div class="card"><h3>Find a radio</h3><div style="display:flex;gap:8px"><input id="dashq" placeholder="Radio #, serial, staff, model\u2026" style="flex:1" onkeydown="if(event.key===\'Enter\')dashSearch()"><button class="btn btn-primary" onclick="dashSearch()">Search</button></div><div class="note" style="margin-top:6px">Tip: paste several radio #s or serials, separated by commas, to find them all at once.</div></div><h2 class="sec" style="margin-top:2px">Today at a glance</h2><div class="row">'
     +'<div class="tile" onclick="tileRadios(\'all\')"><div class="n">'+radios.length+'</div><div class="l">Radios</div></div>'
     +'<div class="tile" onclick="tileRadios(\'assigned\')"><div class="n">'+n("Assigned")+'</div><div class="l">Assigned</div></div>'
     +'<div class="tile'+(transit?' warn':'')+'" onclick="tileSubs()"><div class="n">'+transit+'</div><div class="l">In transit</div></div>'
@@ -955,7 +955,7 @@ window.radioDetail = u=>{
     +'<label>Hotel replaced at</label><select id="fd-replprop">'+PROPS.map(c=>'<option value="'+c+'"'+(c===f.prop?" selected":"")+">"+esc(propLabel(c))+"</option>").join("")+"</select>"
     +'<button class="btn btn-primary" onclick="replaceRadio(\''+f.uid+'\')">Mark replaced</button>'
     +'<button class="btn btn-ghost" onclick="battTest(\''+f.uid+'\')">Log battery test today</button>'
-    +'<button class="btn btn-gold" onclick="emciForm(\''+f.uid+'\')">\uD83D\uDCC4 EMCI repair form</button><button class="btn btn-ghost" onclick="emailRadio(\''+f.uid+'\')">Email to Support</button>'+'<button class="btn btn-ghost" onclick="printRadioRecord(\''+f.uid+'\')">Print Record</button>'
+    +'<button class="btn btn-gold" onclick="emciForm(\''+f.uid+'\')">\uD83D\uDCC4 EMCI repair form</button><a class="btn btn-ghost" href="https://www.emciwireless.com/our-services/equipment-repair-form/" target="_blank" rel="noopener">\uD83C\uDF10 EMCI online form</a><button class="btn btn-ghost" onclick="emailRadio(\''+f.uid+'\')">Email to Support</button>'+'<button class="btn btn-ghost" onclick="printRadioRecord(\''+f.uid+'\')">Print Record</button>'
     +'<button class="btn btn-danger" onclick="delRadio(\''+f.uid+'\')">Delete radio</button>'
     +"<h2 class='sec'>History</h2><div class='hist'>"
     +((f.hist||[]).slice().reverse().map(ev=>"<div>"+esc(ev.e)+(ev.by?' <span class="note">\u2014 '+esc(ev.by)+"</span>":"")+'<div class="t">'+fmtDT(ev.t)+"</div></div>").join("")||'<div class="empty">No history.</div>')
